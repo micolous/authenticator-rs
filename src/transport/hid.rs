@@ -89,11 +89,18 @@ pub trait HIDDevice: FidoDevice + Read + Write {
         send: &[u8],
         keep_alive: &dyn Fn() -> bool,
     ) -> io::Result<(HIDCmd, Vec<u8>)> {
+        // ...keep-alive messages MAY be sent from the device to the client before the response
+        // message (to CTAPHID_CBOR) is returned.
+        //
+        // ...(CTAPHID_KEEPALIVE) is sent while processing a CTAPHID_MSG.
+        //
+        // Ignore keepalive messages sent in response to other commands.
+        let ignore_keepalive = !matches!(cmd, HIDCmd::Cbor | HIDCmd::Msg);
         self.u2f_write(cmd.into(), send)?;
         debug!("sent to Device {:?} cmd={:?}: {:?}", self.id(), cmd, send);
         loop {
             let (cmd, data) = self.u2f_read()?;
-            if cmd != HIDCmd::Keepalive {
+            if ignore_keepalive || cmd != HIDCmd::Keepalive {
                 debug!(
                     "got from Device {:?} status={:?}: {:?}",
                     self.id(),
