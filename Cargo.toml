@@ -77,7 +77,6 @@ p256 = { version = "0.13", default-features = false, features = ["arithmetic", "
 git = "https://github.com/mozilla/nss-rs"
 version = "0.16"
 default-features = false
-features = ["gecko"]
 optional = true
 
 [dev-dependencies]
