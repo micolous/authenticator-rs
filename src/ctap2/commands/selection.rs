@@ -70,6 +70,7 @@ pub mod tests {
         let cid = *device.get_cid();
         assert!(!device.supports_ctap1());
         assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
         assert_eq!(device.get_protocol(), FidoProtocol::CTAP2);
 
         // ctap2 request

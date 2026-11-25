@@ -194,11 +194,28 @@ where
 
     /// Downgrades the connection to CTAP1/U2F.
     ///
-    /// Returns [`HIDError::UnexpectedVersion`] if the authenticator does not support CTAP1.
+    /// Returns [`HIDError::UnexpectedVersion`] if the authenticator does not support CTAP1, and
+    /// it hasn't been [explicitly declared as failed][Self::set_ctap2_failed].
     ///
     /// We do not provide a generic `set_protocol(..)` function as this would have complicated
     /// interactions with the [`AuthenticatorInfo`] state.
     fn downgrade_to_ctap1(&mut self) -> Result<(), HIDError>;
+
+    /// Check if the device has failed to respond to a CTAP2 `GetInfo` command during
+    /// [`init`][Self::init].
+    ///
+    /// CTAP1-only authenticators that correctly report their capabilities will also set this to
+    /// `false`. This could only return `true` on authenticators that claim to support CTAP2.
+    fn get_ctap2_failed(&self) -> bool;
+
+    /// Mark the device as failing to respond to a CTAP2 `GetInfo` command, so we shouldn't send
+    /// more CTAP2 commands to it.
+    ///
+    /// This forces us to use CTAP1 with non-compliant authenticators, regardless of their claimed
+    /// capabilities.
+    ///
+    /// This operation is falliable on transports that don't support CTAP1.
+    fn set_ctap2_failed(&mut self) -> Result<(), HIDError>;
 
     fn get_shared_secret(&self) -> Option<&SharedSecret>;
     fn set_shared_secret(&mut self, secret: SharedSecret);
@@ -216,9 +233,13 @@ where
                 self.set_authenticator_info(info);
                 return Ok(());
             }
+
+            // If we got here, then the authenticator didn't respond to CTAP2
+            // commands, so we should ignore CBOR and NMSG.
+            self.set_ctap2_failed()?;
         }
 
-        // If the device sets NMSG, this will fail.
+        // If the device does not support CTAP1, this will fail.
         self.downgrade_to_ctap1()?;
         // We want to return an error here if this device doesn't support CTAP1,
         // so we send a U2F_VERSION command.

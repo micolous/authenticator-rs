@@ -227,6 +227,7 @@ pub mod tests {
         dev.create_channel();
         assert!(dev.supports_ctap1());
         assert!(!dev.supports_ctap2());
+        assert!(!dev.get_ctap2_failed());
         assert_eq!(FidoProtocol::CTAP1, dev.get_protocol());
     }
 
@@ -252,6 +253,7 @@ pub mod tests {
         dev.set_authenticator_info(info);
         assert!(!dev.supports_ctap1());
         assert!(dev.supports_ctap2());
+        assert!(!dev.get_ctap2_failed());
         assert_eq!(FidoProtocol::CTAP2, dev.get_protocol());
     }
 

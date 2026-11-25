@@ -168,10 +168,10 @@ impl<T: HIDDevice> CtapVersionSupport for T {
         self.get_device_info()
             .is_some_and(|i| {
                 if i.cap_flags.contains(Capability::NMSG) {
-                    let r = !i.cap_flags.contains(Capability::CBOR);
+                    let r = !i.cap_flags.contains(Capability::CBOR) || self.get_ctap2_failed();
                     if r {
                         // https://bugzilla.mozilla.org/show_bug.cgi?id=2093140
-                        warn!("Authenticator set capability 'NMSG' but not 'CBOR', this is not CTAP2 compliant! Using as CTAP1-only.");
+                        warn!("Authenticator set capability 'NMSG', but doesn't support CTAP2! Using as CTAP1-only.");
                     }
                     r
                 } else {
@@ -181,8 +181,10 @@ impl<T: HIDDevice> CtapVersionSupport for T {
     }
 
     fn supports_ctap2(&self) -> bool {
-        self.get_device_info()
-            .is_some_and(|i| i.cap_flags.contains(Capability::CBOR))
+        !self.get_ctap2_failed()
+            && self
+                .get_device_info()
+                .is_some_and(|i| i.cap_flags.contains(Capability::CBOR))
     }
 }
 
@@ -354,14 +356,11 @@ mod tests {
             ("capabilities/ctap1_only_2", 0x2, true, false),
             ("capabilities/ctap1_only_3", 0x3, true, false),
             ("capabilities/ctap2_only_e", 0xe, false, true),
-            // "MitID chip" is a modified Feitian MultiPass FIDO issued by the Danish government.
-            // These are known to accept CTAP1 commands, but have invalid capability flags:
-            // https://bugzilla.mozilla.org/show_bug.cgi?id=2093140
-            ("capabilities/mitid_chip", 0xb, true, false),
             // Invalid flag combinations, where we should fall back to CTAP1.
             ("capabilities/invalid_8", 0x8, true, false),
             ("capabilities/invalid_9", 0x9, true, false),
             ("capabilities/invalid_a", 0xa, true, false),
+            ("capabilities/invalid_b", 0xb, true, false),
         ];
 
         for (name, capabilities, supports_ctap1, supports_ctap2) in tests {

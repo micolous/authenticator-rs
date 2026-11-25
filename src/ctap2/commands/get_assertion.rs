@@ -1407,6 +1407,7 @@ pub mod test {
         HIDDevice::pre_init(&mut device).expect("pre_init");
         assert!(device.supports_ctap1());
         assert!(!device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
         device.downgrade_to_ctap1().expect("failed to downgrade");
         assert_eq!(device.get_protocol(), FidoProtocol::CTAP1);
 
@@ -1506,6 +1507,7 @@ pub mod test {
         HIDDevice::pre_init(&mut device).expect("pre_init");
         assert!(device.supports_ctap1());
         assert!(!device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
         device.downgrade_to_ctap1().expect("failed to downgrade");
         assert_eq!(device.get_protocol(), FidoProtocol::CTAP1);
 
@@ -1705,6 +1707,7 @@ pub mod test {
         });
         assert!(device.supports_ctap1());
         assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
         device.set_authenticator_info(AuthenticatorInfo {
             versions: vec![AuthenticatorVersion::U2F_V2, AuthenticatorVersion::FIDO_2_0],
             extensions: vec!["uvm".to_string(), "hmac-secret".to_string()],

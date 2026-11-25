@@ -26,6 +26,7 @@ pub struct Device {
     secret: Option<SharedSecret>,
     authenticator_info: Option<AuthenticatorInfo>,
     protocol: FidoProtocol,
+    ctap2_failed: bool,
 }
 
 impl Device {
@@ -141,6 +142,7 @@ impl HIDDevice for Device {
             secret: None,
             authenticator_info: None,
             protocol: FidoProtocol::CTAP2,
+            ctap2_failed: false,
         };
         if res.is_u2f() {
             info!("new device {:?}", res.path);
@@ -241,5 +243,14 @@ impl FidoDevice for Device {
         } else {
             Err(HIDError::UnexpectedVersion)
         }
+    }
+
+    fn get_ctap2_failed(&self) -> bool {
+        self.ctap2_failed
+    }
+
+    fn set_ctap2_failed(&mut self) -> Result<(), HIDError> {
+        self.ctap2_failed = true;
+        Ok(())
     }
 }

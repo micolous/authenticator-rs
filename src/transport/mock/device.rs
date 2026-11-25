@@ -35,6 +35,7 @@ pub struct Device {
     pub upcoming_requests: VecDeque<Vec<u8>>,
     pub upcoming_responses: VecDeque<Result<Box<dyn Any>, HIDError>>,
     pub shared_secret: Option<SharedSecret>,
+    ctap2_failed: bool,
 }
 
 impl Device {
@@ -95,6 +96,7 @@ impl Device {
             upcoming_requests: VecDeque::new(),
             upcoming_responses: VecDeque::new(),
             shared_secret: None,
+            ctap2_failed: false,
         })
     }
 
@@ -212,6 +214,7 @@ impl HIDDevice for Device {
             upcoming_requests: VecDeque::new(),
             upcoming_responses: VecDeque::new(),
             shared_secret: None,
+            ctap2_failed: false,
         })
     }
 
@@ -364,5 +367,14 @@ impl FidoDevice for Device {
         } else {
             Err(HIDError::UnexpectedVersion)
         }
+    }
+
+    fn get_ctap2_failed(&self) -> bool {
+        self.ctap2_failed
+    }
+
+    fn set_ctap2_failed(&mut self) -> Result<(), HIDError> {
+        self.ctap2_failed = true;
+        Ok(())
     }
 }

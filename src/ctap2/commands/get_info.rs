@@ -960,6 +960,89 @@ pub mod tests {
     }
 
     #[test]
+    fn test_get_info_ctap1_and_2() {
+        let mut device =
+            Device::new_pre_inited("commands/get_info", Capability::CBOR | Capability::WINK);
+        let cid = *device.get_cid();
+
+        // ctap2 request
+        let mut msg = cid.to_vec();
+        msg.extend(vec![HIDCmd::Cbor.into(), 0x00, 0x1]); // cmd + bcnt
+        msg.extend(vec![0x04]); // authenticatorGetInfo
+        device.add_write(&msg, 0);
+
+        // ctap2 response
+        let mut msg = cid.to_vec();
+        msg.extend(vec![HIDCmd::Cbor.into(), 0x00, 0x5A]); // cmd + bcnt
+        msg.extend(vec![0]); // Status code: Success
+        msg.extend(&AUTHENTICATOR_INFO_PAYLOAD[0..(IN_HID_RPT_SIZE - 8)]);
+        device.add_read(&msg, 0);
+        // Continuation package
+        let mut msg = cid.to_vec();
+        msg.extend(vec![0x00]); // SEQ
+        msg.extend(&AUTHENTICATOR_INFO_PAYLOAD[(IN_HID_RPT_SIZE - 8)..]);
+        device.add_read(&msg, 0);
+        device.init().expect("Failed to init device");
+
+        assert_eq!(device.get_cid(), &cid);
+
+        assert!(device.supports_ctap1());
+        assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
+        assert_eq!(device.get_protocol(), FidoProtocol::CTAP2);
+
+        let result = device
+            .get_authenticator_info()
+            .expect("Didn't get any authenticator_info");
+        let expected = AuthenticatorInfo {
+            versions: vec![AuthenticatorVersion::U2F_V2, AuthenticatorVersion::FIDO_2_0],
+            extensions: vec!["uvm".to_string(), "hmac-secret".to_string()],
+            aaguid: AAGuid(AAGUID_RAW),
+            options: AuthenticatorOptions {
+                platform_device: false,
+                resident_key: true,
+                client_pin: Some(false),
+                user_presence: true,
+                user_verification: None,
+                ..Default::default()
+            },
+            max_msg_size: Some(1200),
+            pin_protocols: Some(vec![1]),
+            max_credential_count_in_list: None,
+            max_credential_id_length: None,
+            transports: None,
+            algorithms: None,
+            max_ser_large_blob_array: None,
+            force_pin_change: None,
+            min_pin_length: None,
+            firmware_version: None,
+            max_cred_blob_length: None,
+            max_rpids_for_set_min_pin_length: None,
+            preferred_platform_uv_attempts: None,
+            uv_modality: None,
+            certifications: None,
+            remaining_discoverable_credentials: None,
+            vendor_prototype_config_commands: None,
+            attestation_formats: None,
+            uv_count_since_last_pin_entry: None,
+            long_touch_for_reset: None,
+        };
+
+        assert_eq!(result, &expected);
+
+        device
+            .downgrade_to_ctap1()
+            .expect("downgrading to CTAP1 should succeed");
+        assert_eq!(device.get_protocol(), FidoProtocol::CTAP1);
+        assert!(device.supports_ctap1());
+        assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
+
+        let dev_info = device.get_device_info().expect("device info is set");
+        assert_eq!(dev_info.cap_flags, Capability::WINK | Capability::CBOR);
+    }
+
+    #[test]
     fn test_get_info_ctap2_only() {
         let mut device = Device::new_pre_inited(
             "commands/get_info",
@@ -990,6 +1073,7 @@ pub mod tests {
 
         assert!(!device.supports_ctap1());
         assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
         assert_eq!(device.get_protocol(), FidoProtocol::CTAP2);
         assert!(matches!(
             device
@@ -1000,6 +1084,7 @@ pub mod tests {
         assert_eq!(device.get_protocol(), FidoProtocol::CTAP2);
         assert!(!device.supports_ctap1());
         assert!(device.supports_ctap2());
+        assert!(!device.get_ctap2_failed());
 
         let dev_info = device.get_device_info().expect("device info is set");
         assert_eq!(
