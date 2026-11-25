@@ -579,22 +579,28 @@ pub fn register<Dev: FidoDevice>(
         let resp = dev.send_msg_cancellable(&makecred, alive, Some(&status));
         match resp {
             Ok(result) => {
-                if has_large_blob && result.large_blob_key.is_some() {
-                    // NOTE: We 'ask' the user for the large blob here, simply to avoid more dependencies. We could do this non-interactively, by adding the plaintext to the RegisterArgs and calculate all necessary things right here, but we would need AEAD-algos and DEFLATE. Leaving that (currently) for the user to do. If we decide to put it here, see ctap2_discoverable_creds.rs for the required steps.
-                    if let Ok(blob) =
-                        ask_user_for_large_blob(&status, result.large_blob_key.as_ref().unwrap())
-                    {
-                        if let Err(e) = large_blobs::add_large_blob(
-                            dev,
-                            alive,
-                            blob,
-                            pin_uv_auth_result.get_pin_uv_auth_token(),
-                        ) {
-                            // Only warn but continue, as the actual registering worked.
-                            warn!("Failed to write large blob: {e:?}");
+                if has_large_blob {
+                    // NOTE: We 'ask' the user for the large blob here, simply to avoid more
+                    // dependencies. We could do this non-interactively, by adding the plaintext to
+                    // the RegisterArgs and calculate all necessary things right here, but we would
+                    // need AEAD-algos and DEFLATE. Leaving that (currently) for the user to do. If
+                    // we decide to put it here, see ctap2_discoverable_creds.rs for the required
+                    // steps.
+                    if let Some(key) = result.large_blob_key.as_ref() {
+                        if let Ok(blob) = ask_user_for_large_blob(&status, key) {
+                            if let Err(e) = large_blobs::add_large_blob(
+                                dev,
+                                alive,
+                                blob,
+                                pin_uv_auth_result.get_pin_uv_auth_token(),
+                            ) {
+                                // Only warn but continue, as the actual registering worked.
+                                warn!("Failed to write large blob: {e:?}");
+                            }
                         }
                     }
                 }
+
                 callback.call(Ok(result));
                 return true;
             }
